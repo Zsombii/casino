@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blackjack</title>
+</head>
+<body>
+
+    <style>
+        body {
+    margin-top: 100px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background-color: #3e693d;
+    background: url(bg.jpg);
+    background-size: cover;
+    background-position: center;
+    overflow: hidden;
+    color: #ffffff;
+    width: 100%;
+    height: 100vh;
+}
+
+label{
+    font-size: 22px;
+}
+
+.container {
+    margin-top: 50px;
+}
+
+.dealer{
+    margin-top: 60px;
+}
+
+p{
+    font-size: 30px;
+}
+
+.card.heart, .card.diamond {
+    color: red;
+}
+
+.card.spade, .card.club {
+    color: black;
+}
+
+#balance{
+    border: 1px solid black;
+    border-radius: 15px;
+    padding: 7px;
+    background: #4caf50;
+    color: #000;
+}
+
+#player-score{
+    border: 1px solid black;
+    border-radius: 15px;
+    padding: 7px;
+    background: #47a098;
+    color: #000;
+}
+
+#dealer-score{
+    border: 1px solid black;
+    border-radius: 15px;
+    padding: 7px;
+    background: #6b2e2e;
+    color: #ffffff;
+}
+
+.cards {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    margin: 10px 0;
+}
+
+@keyframes slide-in {
+from {
+    transform: translateY(-20px);
+    opacity: 0;
+}
+to {
+    transform: translateY(0);
+    opacity: 1;
+}
+}
+
+.card {
+    width: 60px;
+    height: 90px;
+    border: 2px solid #000000;
+    border-radius: 8px;
+    background-color: #ffffff;
+    color: #000;
+    color: #c91111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 30px;
+    font-weight: bold;
+    animation: slide-in 0.5s ease-in-out;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.hidden {
+    background-color: #444;
+    color: #444;
+}
+
+.buttons {
+    margin: 20px;
+}
+
+button {
+    padding: 10px 20px;
+    font-size: 16px;
+    margin: 5px;
+    cursor: pointer;
+    border: 2px solid black;
+    border-radius: 20px;
+    margin-left: 10px;
+    margin-right: 10px;
+}
+
+#reset{
+    background-color: #6b2e2e;
+    color: white;
+    transition: 0.2s;
+    font-weight: bold;
+}
+
+#reset:hover {
+    color: #000;
+    background-color: #d3ad31;
+    transform: scale(1.1);
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+#hit, #stand{
+    background-color: #4caf50;
+    transition: 0.2s;
+    font-weight: bold;
+}
+
+#hit:hover {
+    background-color: #47a098;
+    transform: scale(1.1);
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+#stand:hover {
+    background-color: #47a098;
+    transform: scale(1.1);
+    transition: transform 0.2s, background-color 0.2s;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.result {
+    margin-top: 20px;
+    font-size: 20px;
+    animation: fade-in 0.5s ease-in-out;
+}
+
+.bet {
+    margin: 20px;
+}
+
+#bet-amount{
+    border: 2px solid black;
+    border-radius: 15px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+input {
+    padding: 10px;
+    font-size: 16px;
+    width: 80px;
+}
+    </style>
+
+    <div class="container">
+        <div class="bet">
+            <p>Egyenleg: <span id="balance">10000</span> Ft</p>
+            <label for="bet-amount">Tét: </label>
+            <input type="number" id="bet-amount" min="2" value="1000" step="2">
+        </div>
+        <div>
+            <div class="player">
+                <h2>Lapjaid:</h2>
+                <div class="cards" id="player-cards"></div>
+                <h3>Összérték: <span id="player-score">0</span></h3>
+            </div>
+        <div>
+            <h2 class="dealer">Osztó lapjai:</h2>
+            <div class="cards" id="dealer-cards"></div>
+            <h3>Összérték: <span id="dealer-score">0</span></h3>
+        </div>
+        <div class="buttons">
+            <button id="hit">Lap húzása</button>
+            <button id="stand">Megállás</button>
+            <button id="reset">Új játék</button>
+        </div>
+        <div class="result" id="result"></div>
+    </div>
+    <script>
+        const playerCardsEl = document.getElementById("player-cards");
+        const dealerCardsEl = document.getElementById("dealer-cards");
+        const playerScoreEl = document.getElementById("player-score");
+        const dealerScoreEl = document.getElementById("dealer-score");
+        const resultEl = document.getElementById("result");
+        const balanceEl = document.getElementById("balance");
+        const betAmountEl = document.getElementById("bet-amount");
+
+        const hitButton = document.getElementById("hit");
+        const standButton = document.getElementById("stand");
+        const resetButton = document.getElementById("reset");
+
+        let playerCards = [];
+        let dealerCards = [];
+        let playerScore = 0;
+        let dealerScore = 0;
+        let gameOver = false;
+        let dealerHiddenCard = null;
+        let balance = 10000;
+        let betAmount = 0;
+
+        const deck = [];
+        const suits = ["♠", "♥", "♦", "♣"];
+        const ranks = ["2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A"];
+
+        function createDeck() {
+            suits.forEach(suit => {
+                ranks.forEach(rank => {
+                    deck.push({ rank, suit });
+                });
+            });
+        }
+
+        function animateCard(cardElement) {
+            cardElement.classList.add('card');
+            setTimeout(() => {
+                cardElement.classList.remove('card');
+            }, 500);
+        }
+
+        function shuffleDeck() {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function getCardValue(card) {
+            if (["J", "Q", "K"].includes(card.rank)) return 10;
+            if (card.rank === "A") return 11;
+            return parseInt(card.rank);
+        }
+
+        function calculateScore(cards) {
+            let score = cards.reduce((sum, card) => sum + getCardValue(card), 0);
+            let aceCount = cards.filter(card => card.rank === "A").length;
+
+            while (score > 21 && aceCount > 0) {
+                score -= 10;
+                aceCount--;
+            }
+
+            return score;
+        }
+
+        function renderCards(container, cards, hideFirst = false) {
+            container.innerHTML = "";
+            cards.forEach((card, index) => {
+                const cardEl = document.createElement("div");
+                cardEl.classList.add("card");
+                if (card.suit === "♥" || card.suit === "♦") {
+                    cardEl.classList.add("heart", "diamond");
+                } else if (card.suit === "♠" || card.suit === "♣") {
+                    cardEl.classList.add("spade", "club");
+                }
+        
+                if (hideFirst && index === 1) {
+                    cardEl.classList.add("hidden");
+                    cardEl.textContent = "";
+                } else {
+                    cardEl.textContent = `${card.rank}${card.suit}`;
+                }
+                
+                container.appendChild(cardEl);
+            });
+        }
+        
+
+        function checkWinner() {
+            if (playerScore > 21) {
+                resultEl.textContent = "Vesztettél!";
+                balance -= betAmount;
+                gameOver = true;
+            } else if (dealerScore > 21) {
+                resultEl.textContent = "Nyertél!";
+                balance += betAmount;
+                gameOver = true;
+            } else if (gameOver && dealerScore >= 17) {
+                if (playerScore > dealerScore) {
+                    resultEl.textContent = "Nyertél!";
+                    balance += betAmount;
+                } else if (playerScore < dealerScore) {
+                    resultEl.textContent = "Vesztettél!";
+                    balance -= betAmount;
+                } else {
+                    resultEl.textContent = "Döntetlen!";
+                }
+            }
+            balanceEl.textContent = balance;
+            toggleButtons();
+        }
+
+
+        function revealDealerCard() {
+            dealerCards.push(dealerHiddenCard);
+            dealerHiddenCard = null;
+            renderCards(dealerCardsEl, dealerCards);
+            dealerScore = calculateScore(dealerCards);
+            dealerScoreEl.textContent = dealerScore;
+        }
+
+        function dealInitialCards() {
+            betAmount = parseInt(betAmountEl.value) || 0;
+
+            if (betAmount < 100) {
+                betAmount = 100;
+                betAmountEl.value = 100;
+            }
+
+            if (betAmount > balance) {
+                alert("Nincs elég egyenleged ehhez a téthez!");
+                return;
+            }
+
+            playerCards = [];
+            dealerCards = [];
+            dealerScore = 0;
+            gameOver = false;
+            resultEl.textContent = "";
+
+            playerCards.push(deck.pop(), deck.pop());
+            dealerCards.push(deck.pop());
+            dealerHiddenCard = deck.pop();
+
+            playerScore = calculateScore(playerCards);
+            dealerScore = calculateScore([dealerCards[0], dealerHiddenCard]);
+
+            renderCards(playerCardsEl, playerCards);
+            renderCards(dealerCardsEl, dealerCards, true);
+
+            playerScoreEl.textContent = playerScore;
+            dealerScoreEl.textContent = calculateScore([dealerCards[0]]);
+
+            toggleButtons();
+
+            if (playerScore === 21 && playerCards.length === 2) {
+                resultEl.textContent = "Blackjack! Nyertél!";
+                balance += Math.floor(betAmount * 1.5);
+                gameOver = true;
+                balanceEl.textContent = balance;
+                toggleButtons();
+            }
+        }
+
+
+        function toggleButtons() {
+            if (playerScore === 21 || gameOver) {
+                hitButton.disabled = true;
+                standButton.disabled = true;
+            } else {
+                hitButton.disabled = false;
+                standButton.disabled = false;
+            }
+        }
+
+        document.getElementById("hit").addEventListener("click", () => {
+            if (gameOver) return;
+
+            const card = deck.pop();
+            playerCards.push(card);
+            playerScore = calculateScore(playerCards);
+            renderCards(playerCardsEl, playerCards);
+            playerScoreEl.textContent = playerScore;
+            checkWinner();
+        });
+
+        document.getElementById("stand").addEventListener("click", () => {
+            if (gameOver) return;
+
+            revealDealerCard();
+
+            while (dealerScore < 17) {
+                const card = deck.pop();
+                dealerCards.push(card);
+                dealerScore = calculateScore(dealerCards);
+                renderCards(dealerCardsEl, dealerCards);
+                dealerScoreEl.textContent = dealerScore;
+            }
+
+            gameOver = true;
+            checkWinner();
+        });
+
+        document.getElementById("reset").addEventListener("click", () => {
+            createDeck();
+            shuffleDeck();
+            dealInitialCards();
+        });
+
+        betAmountEl.addEventListener("input", () => {
+            let value = parseInt(betAmountEl.value) || 0;
+            if (value < 100) {
+                value = 100;
+                betAmountEl.value = value;
+            }
+            if (value > balance) {
+                value = balance;
+                betAmountEl.value = value;
+            }
+            betAmount = value;
+        });
+
+        createDeck();
+        shuffleDeck();
+        dealInitialCards();
+    </script>
+</body>
+</html>
